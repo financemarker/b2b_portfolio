@@ -1,0 +1,7 @@
+# === FASTAPI ===
+**/__pycache__/
+**/*.py[cod]
+*.log
+
+# Virtual environments
+**/.venv/
