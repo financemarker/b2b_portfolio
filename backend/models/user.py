@@ -1,31 +1,14 @@
-from sqlalchemy import Column, BigInteger, String, DateTime, text
-from datetime import datetime
+from sqlalchemy import BigInteger, ForeignKey, String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from backend.database import Base
+from backend.models.mixins import ChangesMixin
 
-class User(Base):
+class User(Base, ChangesMixin):
     __tablename__ = "users"
 
-    id = Column(BigInteger, primary_key=True, index=True)
-    name = Column(String, nullable=False)
-    email = Column(String, unique=True, nullable=False, index=True)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id", ondelete="RESTRICT", onupdate="CASCADE"), nullable=False)
+    external_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
 
-    # кто создал и кто изменил
-    created_by = Column(String, nullable=True)
-    changed_by = Column(String, nullable=True)
-
-    # даты создания / изменения
-    created_at = Column(
-        DateTime,
-        nullable=False,
-        server_default=text("CURRENT_TIMESTAMP"),  # на уровне БД
-        default=datetime.now,                   # на уровне Python
-    )
-
-    changed_at = Column(
-        DateTime,
-        nullable=False,
-        server_default=text("CURRENT_TIMESTAMP"),
-        default=datetime.now,
-        onupdate=datetime.now,                  # Python при update
-        # server_onupdate=text("CURRENT_TIMESTAMP"), # не актуально для postgress
-    )
+    client: Mapped["Client"] = relationship(back_populates="users")
+    portfolios: Mapped[list["Portfolio"]] = relationship(back_populates="user")

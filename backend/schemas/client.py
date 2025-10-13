@@ -2,16 +2,17 @@ from pydantic import BaseModel, EmailStr
 from datetime import datetime
 
 # Базовая схема
-class UserBase(BaseModel):
-    name: str
+class ClientBase(BaseModel):
     email: EmailStr
+    password_hash: str
+    role_code: str
 
 # Для создания
-class UserCreate(UserBase):
+class ClientCreate(ClientBase):
     pass
 
 # Для возврата
-class UserRead(UserBase):
+class ClientRead(ClientBase):
     id: int
     created_at: datetime
 
