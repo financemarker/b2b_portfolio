@@ -1,6 +1,6 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
-from backend.config import settings
+from backend.core.config import settings
 
 
 # Создаём движок (например, PostgreSQL)

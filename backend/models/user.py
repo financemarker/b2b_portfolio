@@ -1,6 +1,6 @@
 from sqlalchemy import BigInteger, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from backend.database import Base
+from backend.core.database import Base
 from backend.models.mixins import ChangesMixin
 
 class User(Base, ChangesMixin):

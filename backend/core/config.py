@@ -1,9 +1,15 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import field_validator
+from pydantic import field_validator, Field
 from pathlib import Path
 
 
 class Settings(BaseSettings):
+    # ---- JWT / Security ----
+    SECRET_KEY: str = Field(..., description="Секретный ключ для JWT")
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    
     # === DATABASE CONFIG ===
     POSTGRES_USER: str
     POSTGRES_PASSWORD: str
@@ -14,6 +20,7 @@ class Settings(BaseSettings):
     # === APP CONFIG ===
     DEBUG: bool = False
     ENV: str = "development"
+    API_VERSION: str = "1.2"
 
 
     # === Pydantic 2.x config ===

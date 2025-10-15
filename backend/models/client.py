@@ -1,7 +1,7 @@
 from sqlalchemy import BigInteger, String, ForeignKey, Date
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import date
-from backend.database import Base
+from backend.core.database import Base
 from backend.models.mixins import ChangesMixin
 
 

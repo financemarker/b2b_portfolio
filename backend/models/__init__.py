@@ -6,7 +6,7 @@ from backend.models.portfolio import Portfolio
 from backend.models.trade import Trade
 
 # экспортируем metadata, чтобы Alembic и база знали, что использовать
-from backend.database import Base
+from backend.core.database import Base
 
 metadata = Base.metadata
 
