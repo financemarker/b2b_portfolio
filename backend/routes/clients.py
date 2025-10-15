@@ -27,7 +27,7 @@ def get_me(client=Depends(get_current_client)):
 def create_client(data: ClientCreate, db: Session = Depends(get_db)):
     existing = db.query(Client).filter(Client.email == data.email).first()
     if existing:
-        return ApiResponse.fail(400, "Client with this email already exists")
+        raise HTTPException(status_code=400, detail="Client with this email already exists")
     client = Client(
         email=data.email,
         password_hash=pwd_context.hash(data.password_hash),
