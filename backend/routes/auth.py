@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from jose import jwt, JWTError
 from passlib.context import CryptContext
@@ -9,7 +8,7 @@ from backend.core.dependencies import get_db
 from backend.models import Client
 from backend.core.config import settings
 from backend.schemas.response_wrapper import ApiResponse
-from backend.schemas.auth import TokenResponse
+from backend.schemas.auth import TokenResponse, LoginRequest, RefreshRequest
 
 router = APIRouter()
 
@@ -36,10 +35,10 @@ def create_refresh_token(data: dict, expires_days: int) -> str:
 
 # ---------- Routes ----------
 @router.post("/login", response_model=ApiResponse[TokenResponse], responses={422: {"description": "Validation error", "model": ApiResponse[None]}})
-def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+def login(data: LoginRequest, db: Session = Depends(get_db)):
     """Авторизация клиента по email + пароль"""
-    client = db.query(Client).filter(Client.email == form.username).first()
-    if not client or not verify_password(form.password, client.password_hash):
+    client = db.query(Client).filter(Client.email == data.email).first()
+    if not client or not verify_password(data.password, client.password_hash):
         raise HTTPException(status_code=401, detail="Неверные учётные данные")
 
     access_token = create_access_token(
@@ -60,10 +59,10 @@ def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get
 
 
 @router.post("/refresh", response_model=ApiResponse[TokenResponse], responses={422: {"description": "Validation error", "model": ApiResponse[None]}})
-def refresh_token(refresh_token: str, db: Session = Depends(get_db)):
+def refresh_token(data: RefreshRequest, db: Session = Depends(get_db)):
     """Обновление access-токена"""
     try:
-        payload = jwt.decode(refresh_token, settings.SECRET_KEY,
+        payload = jwt.decode(data.refresh_token, settings.SECRET_KEY,
                              algorithms=[settings.ALGORITHM])
         if payload.get("type") != "refresh":
             raise HTTPException(401, "Invalid token type")
