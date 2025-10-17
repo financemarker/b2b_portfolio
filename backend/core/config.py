@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str = Field(..., description="Секретный ключ для JWT")
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    EPHEMERAL_TOKEN_EXPIRE_MINUTES: int = 10
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     
     # === DATABASE CONFIG ===
