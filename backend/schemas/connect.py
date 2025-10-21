@@ -6,7 +6,7 @@ from typing import Optional, List
 # Общие модели
 # -----------------------------
 class ConnectResponse(BaseModel):
-    portfolio_id: str
+    portfolio_id: int
     broker_code: str
     status: str
 
@@ -28,10 +28,11 @@ class ConnectPayload(BaseModel):
     Поддерживаемые сценарии:
     - Передача списка сделок (`trades`) для ручного импорта;
     - Передача `broker_token` для API-интеграции;
-    - Пустое тело для OAuth или file-загрузки.
+    - File
     """
     trades: Optional[List[Trade]] = Field(None, description="Список сделок для ручного импорта")
     broker_token: Optional[str] = Field(None, description="API токен брокера")
+    external_user_id: str = Field(..., description="Идентификатор пользователя в системе клиента")
 
 
 # -----------------------------
@@ -40,7 +41,7 @@ class ConnectPayload(BaseModel):
 class TokenRequest(BaseModel):
     tenant_id: str = Field(..., description="Идентификатор клиента (B2B клиент или приложение)")
     broker_code: str = Field(..., description="Код брокера (например 'ibkr')")
-    external_id: Optional[str] = Field(None, description="Идентификатор пользователя в системе клиента")
+    external_user_id: str = Field(..., description="Идентификатор пользователя в системе клиента")
 
 class EphemeralLink(BaseModel):
     authorize_url: str = Field(..., description="Ссылка авторизации")

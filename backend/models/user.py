@@ -8,7 +8,7 @@ class User(Base, ChangesMixin):
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     client_id: Mapped[int] = mapped_column(ForeignKey("clients.id", ondelete="RESTRICT", onupdate="CASCADE"), nullable=False)
-    external_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    external_id: Mapped[str] = mapped_column(String(128), nullable=False)
 
     client: Mapped["Client"] = relationship(back_populates="users")
     portfolios: Mapped[list["Portfolio"]] = relationship(back_populates="user")

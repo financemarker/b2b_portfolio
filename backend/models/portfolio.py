@@ -11,7 +11,7 @@ class Portfolio(Base, ChangesMixin):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT", onupdate="CASCADE"), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    broker_type: Mapped[str | None] = mapped_column(String(50), nullable=True)  # "tinkoff","sber","alor",...
+    broker_code: Mapped[str] = mapped_column(String(50), nullable=False)  # "tinkoff","sber","alor",...
 
     user: Mapped["User"] = relationship(back_populates="portfolios")
     trades: Mapped[list["Trade"]] = relationship(back_populates="portfolio")

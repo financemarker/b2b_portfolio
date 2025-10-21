@@ -1,16 +1,14 @@
 from backend.services.connect.strategies.api_token import ApiTokenStrategy
 
 
-class TinkoffApi(ApiTokenStrategy):
-    broker_code = "tinkoff"
-    strategy_type = "api_token"
+class TinkoffToken(ApiTokenStrategy):
     base_url = "https://api-invest.tinkoff.ru/openapi"
 
-    def connect(self, api_token, context=None):
-        data = self.request("operations", api_token)
+    async def connect(self, portfolio_id, broker_token, **kwargs):
+        data = []
         # упрощённая нормализация
         transactions = [
             {"symbol": x["figi"], "qty": x["quantity"], "price": x["price"]}
-            for x in data.get("operations", [])
+            for x in data
         ]
-        return self._build_portfolio(transactions)
+        return 'success'

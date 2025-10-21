@@ -38,7 +38,7 @@ def create_refresh_token(data: dict, expires_days: int) -> str:
 def login(data: LoginRequest, db: Session = Depends(get_db)):
     """Авторизация клиента по email + пароль"""
     client = db.query(Client).filter(Client.email == data.email).first()
-    if not client or not verify_password(data.password, client.password_hash):
+    if not client or not verify_password(data.password, client.password):
         raise HTTPException(status_code=401, detail="Неверные учётные данные")
 
     access_token = create_access_token(

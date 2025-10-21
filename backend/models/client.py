@@ -10,7 +10,7 @@ class Client(Base, ChangesMixin):
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
-    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    password: Mapped[str] = mapped_column(String(255), nullable=False)
     role_code: Mapped[str] = mapped_column(ForeignKey("roles.code", ondelete="RESTRICT", onupdate="CASCADE"), nullable=False)
     api_token: Mapped[str | None] = mapped_column(String(128), nullable=True, unique=True)
     valid_to: Mapped[date | None] = mapped_column(Date, nullable=True)

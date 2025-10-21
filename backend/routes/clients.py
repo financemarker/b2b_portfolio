@@ -30,7 +30,7 @@ def create_client(data: ClientCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Client with this email already exists")
     client = Client(
         email=data.email,
-        password_hash=pwd_context.hash(data.password_hash),
+        password=pwd_context.hash(data.password),
         role_code=data.role_code
     )
     db.add(client)

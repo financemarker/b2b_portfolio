@@ -1,11 +1,13 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Request
 from datetime import datetime, timedelta
 from jose import jwt
-from backend.core.dependencies import get_current_client
+from sqlalchemy.orm import Session
+from backend.core.dependencies import get_current_client, get_db
 from backend.schemas.connect import ConnectPayload, TokenRequest, ConnectResponse, EphemeralLink
 from backend.schemas.response_wrapper import ApiResponse
 from backend.services.connect import service
 from backend.core.config import settings
+from backend.models.portfolio import Portfolio
 
 router = APIRouter()
 
@@ -31,17 +33,25 @@ def create_ephemeral_token(tenant_id: str, broker_code: str, external_id: str | 
 async def connect_broker(
     broker_code: str,
     strategy: str,
+    request: Request,
+    db: Session = Depends(get_db),
     client=Depends(get_current_client),
-    data: ConnectPayload | None = None,
-    file: UploadFile | None = File(None),
 ):
     try:
-        payload = data.model_dump(exclude_none=True) if data else {}
-        if file:
-            payload["file"] = file
+        payload = {}
+        if strategy == 'file':
+            form = await request.form()
+            payload = dict(form)
+        else:
+            body = await request.json()
+            payload = ConnectPayload(**body).model_dump(exclude_none=True)
+
+        # get user - mandatory
+        if not "external_user_id" in payload:
+            raise Exception(f"Validation failed: external_user_id should be passed")
 
         broker_id = f"{broker_code}_{strategy}"
-        result = await service.handle_connect(broker_id, payload)
+        result = await service.handle_connect(db, client, broker_id, payload)
         return ApiResponse.ok_item(result)
 
     except Exception as exc:

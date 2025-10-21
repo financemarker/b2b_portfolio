@@ -33,7 +33,7 @@ async def get_current_client(credentials: HTTPAuthorizationCredentials = Securit
         client = db.query(Client).filter(Client.api_token == token).first()
         if not client:
             raise HTTPException(status_code=401, detail="Invalid API token")
-        if client.valid_to < datetime.today():
+        if not client.valid_to or client.valid_to < datetime.today().date():
             raise HTTPException(
                 status_code=403, detail="Client inactive or expired")
         return client
