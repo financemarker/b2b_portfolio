@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from backend.core.database import SessionLocal
 from backend.models import Client
 from backend.core.config import settings
+from backend.core import utils
 
 
 # ---------- DB dependency ----------
@@ -36,6 +37,7 @@ async def get_current_client(credentials: HTTPAuthorizationCredentials = Securit
         if not client.valid_to or client.valid_to < datetime.today().date():
             raise HTTPException(
                 status_code=403, detail="Client inactive or expired")
+        utils.consume_api_request(client, db)
         return client
 
     # --- JWT Token ---
