@@ -1,4 +1,4 @@
-from sqlalchemy import BigInteger, ForeignKey, String
+from sqlalchemy import BigInteger, ForeignKey, String, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from backend.core.database import Base
 from backend.models.mixins import ChangesMixin
@@ -9,6 +9,7 @@ class User(Base, ChangesMixin):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     client_id: Mapped[int] = mapped_column(ForeignKey("clients.id", ondelete="RESTRICT", onupdate="CASCADE"), nullable=False)
     external_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    portfolios_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     client: Mapped["Client"] = relationship(back_populates="users")
     portfolios: Mapped[list["Portfolio"]] = relationship(back_populates="user")

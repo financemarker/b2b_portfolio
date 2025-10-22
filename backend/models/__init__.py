@@ -4,6 +4,7 @@ from backend.models.client import Client
 from backend.models.user import User
 from backend.models.portfolio import Portfolio
 from backend.models.trade import Trade
+from backend.models.order import Order
 
 # экспортируем metadata, чтобы Alembic и база знали, что использовать
 from backend.core.database import Base
@@ -17,5 +18,6 @@ __all__ = [
     "User",
     "Portfolio",
     "Trade",
+    "Order",
     "metadata",
 ]
