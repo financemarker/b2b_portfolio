@@ -13,3 +13,4 @@ class User(Base, ChangesMixin):
 
     client: Mapped["Client"] = relationship(back_populates="users")
     portfolios: Mapped[list["Portfolio"]] = relationship(back_populates="user")
+    connections: Mapped["Connection"] = relationship(back_populates="user")
