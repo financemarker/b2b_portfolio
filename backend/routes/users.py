@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from backend.core.dependencies import get_db, get_current_client
 from backend.models.client import Client
 from backend.models.user import User
-from backend.models.connection import Connection
+from backend.models.connection import Connection as ConnectionModel
 from backend.schemas.connection import Connection, ConnectionCreate, ImportPayload
 from backend.schemas.response_wrapper import ApiResponse
 from backend.services.integration import service
@@ -23,7 +23,7 @@ async def create_connection(
     """Создать новое подключение для пользователя"""
     try:
         result = await service.create_connection(db, client, external_user_id, payload)
-        return ApiResponse.ok(result)
+        return ApiResponse.ok_list(result)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -36,8 +36,10 @@ async def get_connection(
     client: Client = Depends(get_current_client),
 ):
     """Получить подключение"""
-    user = db.query(User).filter(external_id=external_user_id)
-    connections = db.query(Connection).filter(user_id=user.id)
+    user = db.query(User).filter(User.external_id == external_user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    connections = db.query(ConnectionModel).filter(ConnectionModel.user_id == user.id).all()
     if not connections:
         raise HTTPException(status_code=404, detail="Connection not found")
     return ApiResponse.ok_list(connections)
@@ -54,6 +56,6 @@ async def import_operations(
     """Разовый импорт сделок — по connection_id или файлу"""
     try:
         result = await service.run_import(db, client, external_user_id, payload)
-        return ApiResponse.ok(result)
+        return ApiResponse.ok_list(result)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

@@ -1,4 +1,4 @@
-from base import BrokerBase
+from backend.services.integration.brokers.base import BrokerBase
 
 class TinkoffApi(BrokerBase):
     broker_code = "tinkoff"

@@ -1,5 +1,4 @@
 from pydantic import BaseModel, EmailStr
-from datetime import datetime
 
 # Базовая схема
 class ClientBase(BaseModel):

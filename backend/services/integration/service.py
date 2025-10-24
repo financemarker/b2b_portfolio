@@ -27,7 +27,7 @@ async def create_connection(db: Session, client, external_user_id: str, payload)
     user, _ = utils.get_or_create(db, User, client_id=client.id, external_id=external_user_id)
 
     # вызывем брокера
-    raw_connections = await broker.create_connections(**payload.dict())
+    raw_connections = await broker.create_connections(**payload.model_dump())
 
     created = []
     for conn in raw_connections:
@@ -65,7 +65,7 @@ async def run_import(db: Session, client, external_user_id: str, payload):
         if not broker:
             raise Exception(f"Broker '{broker_key}' not registered")
 
-        operations = await broker.import_operations(**payload.dict())
+        operations = await broker.import_operations(**payload.model_dump())
     else:
         # ручной / file импорт
         operations = payload.operations or []

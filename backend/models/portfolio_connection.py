@@ -1,6 +1,4 @@
-from enum import Enum as PyEnum
-from typing import Optional
-from sqlalchemy import String, BigInteger, Enum, ForeignKey
+from sqlalchemy import BigInteger, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.core.database import Base
