@@ -1,11 +1,11 @@
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict
-from backend.schemas.operation import Operation
+from backend.schemas.operation import OperationCreate
 
 # -----------------------------
 # Общие модели
 # -----------------------------
-class Connection(BaseModel):
+class ConnectionRead(BaseModel):
     connection_id: int
     account_id: int | None
     name: str
@@ -41,7 +41,7 @@ class ImportPayload(BaseModel):
         None,
         description="ID подключения (если импорт через существующий connection)"
     )
-    operations: Optional[List[Operation]] = Field(
+    operations: Optional[List[OperationCreate]] = Field(
         None,
         description="Список операций (если импорт вручную или из файла)"
     )

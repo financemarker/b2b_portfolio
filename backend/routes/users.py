@@ -3,8 +3,8 @@ from sqlalchemy.orm import Session
 from backend.core.dependencies import get_db, get_current_client
 from backend.models.client import Client
 from backend.models.user import User
-from backend.models.connection import Connection as ConnectionModel
-from backend.schemas.connection import Connection, ConnectionCreate, ImportPayload
+from backend.models.connection import Connection
+from backend.schemas.connection import ConnectionRead, ConnectionCreate, ImportPayload
 from backend.schemas.response_wrapper import ApiResponse
 from backend.services.integration import service
 
@@ -13,7 +13,7 @@ router = APIRouter()
 # === CONNECTIONS ===
 
 
-@router.post("/{external_user_id}/connections/", response_model=ApiResponse[list[Connection]])
+@router.post("/{external_user_id}/connections/", response_model=ApiResponse[list[ConnectionRead]])
 async def create_connection(
     external_user_id: str,
     payload: ConnectionCreate,
@@ -28,7 +28,7 @@ async def create_connection(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/{external_user_id}/connections/", response_model=ApiResponse[list[Connection]])
+@router.get("/{external_user_id}/connections/", response_model=ApiResponse[list[ConnectionRead]])
 async def get_connection(
     external_user_id: str,
     connection_id: int,
@@ -39,7 +39,7 @@ async def get_connection(
     user = db.query(User).filter(User.external_id == external_user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    connections = db.query(ConnectionModel).filter(ConnectionModel.user_id == user.id).all()
+    connections = db.query(Connection).filter(Connection.user_id == user.id).all()
     if not connections:
         raise HTTPException(status_code=404, detail="Connection not found")
     return ApiResponse.ok_list(connections)
