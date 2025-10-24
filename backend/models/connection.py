@@ -1,12 +1,12 @@
 from enum import Enum as PyEnum
-from sqlalchemy import String, BigInteger, ForeignKey
+from sqlalchemy import String, BigInteger, ForeignKey, Enum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.core.database import Base
 from backend.models.mixins import ChangesMixin
 
 
-class ConnectionStatusEnum(str, PyEnum):
+class ConnectionStatus(str, PyEnum):
     ACTIVE = "active"
     INACTIVE = "inactive"
     DELISTED = "delisted"
@@ -27,9 +27,11 @@ class Connection(Base, ChangesMixin):
     strategy: Mapped[str] = mapped_column(String(64), nullable=False)
 
     name: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    status: Mapped[str] = mapped_column(
-        ConnectionStatusEnum, nullable=False, server_default="pending")
-
+    status: Mapped[ConnectionStatus] = mapped_column(
+        Enum(ConnectionStatus, name="connection_status"),
+        nullable=False,
+        server_default=ConnectionStatus.PENDING.value,
+    )
     access_token: Mapped[str | None] = mapped_column(
         String(128), nullable=True)
     account_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
