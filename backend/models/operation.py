@@ -7,15 +7,6 @@ from backend.core.database import Base
 from backend.models.mixins import ChangesMixin
 
 
-class ConnectionStatusEnum(str, PyEnum):
-    ACTIVE = "active"
-    INACTIVE = "inactive"
-    DELISTED = "delisted"
-    PENDING = "pending"
-    ERROR = "error"
-    REVOKED = "revoked"
-
-
 # === MODEL ===
 class Operation(Base, ChangesMixin):
     __tablename__ = "operations"

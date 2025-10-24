@@ -37,3 +37,13 @@ class Connection(Base, ChangesMixin):
 
     # relationships
     user: Mapped[list["User"]] = relationship(back_populates="connections")
+    portfolio_connections = relationship(
+        "PortfolioConnection",
+        back_populates="connection",
+    )
+    portfolios = relationship(
+        "Portfolio",
+        secondary="portfolios_connections",
+        back_populates="connections",
+        viewonly=True,
+    )
