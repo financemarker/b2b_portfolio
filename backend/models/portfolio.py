@@ -14,4 +14,4 @@ class Portfolio(Base, ChangesMixin):
     broker_code: Mapped[str] = mapped_column(String(50), nullable=False)  # "tinkoff","sber","alor",...
 
     user: Mapped["User"] = relationship(back_populates="portfolios")
-    trades: Mapped[list["Trade"]] = relationship(back_populates="portfolio")
+    operations: Mapped[list["Operation"]] = relationship(back_populates="portfolio")

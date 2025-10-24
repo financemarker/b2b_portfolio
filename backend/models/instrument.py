@@ -58,3 +58,4 @@ class Instrument(Base, ChangesMixin):
 
     # ORM relationships
     exchange: Mapped["Exchange"] = relationship(back_populates="instruments")
+    operations: Mapped[list["Operation"]] = relationship(back_populates="instrument")

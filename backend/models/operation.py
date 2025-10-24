@@ -1,0 +1,31 @@
+from enum import Enum as PyEnum
+from typing import Optional
+from sqlalchemy import String, BigInteger, Enum, ForeignKey, DateTime
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from backend.core.database import Base
+from backend.models.mixins import ChangesMixin
+
+
+class ConnectionStatusEnum(str, PyEnum):
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+    DELISTED = "delisted"
+    PENDING = "pending"
+    ERROR = "error"
+    REVOKED = "revoked"
+
+
+# === MODEL ===
+class Operation(Base, ChangesMixin):
+    __tablename__ = "operations"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    portfolio_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("portfolios.id", onupdate="CASCADE", ondelete="CASCADE"), nullable=False)
+    instrument_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("instruments.id", onupdate="CASCADE", ondelete="CASCADE"), nullable=False)
+    timestamp: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, )
+    source: Mapped[str] = mapped_column(String(64), nullable=True)
+
+    # relationships
+    instrument: Mapped["Instrument"] = relationship(back_populates="operations")
+    portfolio: Mapped["Portfolio"] = relationship(back_populates="operations")
