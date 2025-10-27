@@ -1,4 +1,14 @@
 from abc import ABC, abstractmethod
+from typing import TypedDict
+from backend.models.connection import ConnectionStatus
+
+
+class AccountDict(TypedDict):
+    """Type hint for account data returned by brokers"""
+    id: str
+    name: str
+    status: ConnectionStatus
+
 
 class BrokerBase(ABC):
     """
@@ -16,8 +26,12 @@ class BrokerBase(ABC):
 
     # === обязательные методы ===
     @abstractmethod
-    async def create_connections(self, **kwargs) -> list[dict]:
-        """Создание новых connections (через токен, логин и т.п.)"""
+    async def get_accounts(self, **kwargs) -> list[AccountDict]:
+        """Создание новых connections (через токен, логин и т.п.)
+
+        Returns:
+            list[AccountDict]: List of accounts with id, name, and status (ConnectionStatus enum)
+        """
         pass
 
     @abstractmethod

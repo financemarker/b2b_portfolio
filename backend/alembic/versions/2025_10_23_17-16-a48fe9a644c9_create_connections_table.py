@@ -34,10 +34,10 @@ def upgrade():
         sa.Column("name", sa.String(length=255), nullable=True),
         sa.Column(
             "status",
-            sa.Enum('active', 'pending', 'inactive', 'error', 'revoked',
+            sa.Enum('ACTIVE', 'PENDING', 'INACTIVE', 'ERROR', 'REVOKED',
                     name="connection_status"),
             nullable=False,
-            server_default="pending",
+            server_default="PENDING",
         ),
 
         # Храним технические детали подключения. Рекомендация: шифровать секретные поля на уровне приложения.
@@ -72,3 +72,5 @@ def downgrade():
     op.drop_index("ix_connections_user_broker", table_name="connections")
     op.drop_index("ix_connections_user", table_name="connections")
     op.drop_table("connections")
+
+    sa.Enum(name="connection_status").drop(op.get_bind())

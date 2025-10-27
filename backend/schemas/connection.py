@@ -1,16 +1,17 @@
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict
 from backend.schemas.operation import OperationCreate
+from backend.models.connection import ConnectionStatus
 
 # -----------------------------
 # Общие модели
 # -----------------------------
 class ConnectionRead(BaseModel):
-    connection_id: int
+    id: int
     account_id: int | None
     name: str
     broker_code: str
-    status: str
+    status: ConnectionStatus
 
 
 # === PAYLOAD для создания подключения ===
@@ -20,16 +21,8 @@ class ConnectionCreate(BaseModel):
     Передаётся в /users/{external_user_id}/connections/
     """
     broker_code: str = Field(..., example="tinkoff", description="Код брокера, например 'tinkoff' или 'finam'")
-    strategy: str = Field(..., example="api", description="Тип стратегии: api, file, token, oauth2 и т.д.")
-    name: Optional[str] = Field(None, example="Основной счёт", description="Имя подключения (опционально)")
-    credentials: Optional[Dict[str, str]] = Field(
-        None,
-        description="Данные для подключения (токен, логин, пароль и т.п.)"
-    )
-    portfolio_id: Optional[int] = Field(
-        None,
-        description="Если нужно сразу привязать к существующему портфелю"
-    )
+    strategy: str = Field(..., example="token", description="Тип стратегии: api, file, token, oauth2 и т.д.")
+    access_token: str | None = Field(None, description="Токен доступа для чтения сделок")
 
 
 class ImportPayload(BaseModel):

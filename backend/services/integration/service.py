@@ -2,16 +2,17 @@ from typing import List
 from sqlalchemy.orm import Session
 from backend.models import User, Portfolio, Connection
 from backend.core import utils
-from .brokers.tinkoff_token import TinkoffApi
+from backend.services.integration.brokers.tinkoff_token import TinkoffToken
 # сюда же будут добавляться другие брокеры
 
 # === Централизованный реестр брокеров ===
 BROKER_REGISTRY = {
-    "tinkoff_api": TinkoffApi(),
+    "tinkoff_token": TinkoffToken(),
     # "finam_file": FinamFile(),
 }
 
 # === Фасад для маршрутов ===
+
 
 async def create_connection(db: Session, client, external_user_id: str, payload) -> List[dict]:
     """
@@ -24,26 +25,28 @@ async def create_connection(db: Session, client, external_user_id: str, payload)
     if not broker:
         raise Exception(f"Broker '{broker_key}' not found")
 
-    user, _ = utils.get_or_create(db, User, client_id=client.id, external_id=external_user_id)
+    user, creation_flag = utils.get_or_create(
+        db, User, client_id=client.id, external_id=external_user_id)
 
     # вызывем брокера
-    raw_connections = await broker.create_connections(**payload.model_dump())
+    broker_accounts = await broker.get_accounts(**payload.model_dump())
 
-    created = []
-    for conn in raw_connections:
+    connections = []
+    for account in broker_accounts:
         connection = Connection(
             user_id=user.id,
             broker_code=payload.broker_code,
             strategy=payload.strategy,
-            name=conn.get("name"),
-            status=conn.get("status", "active"),
-            credentials=conn,
+            name=account.get("name"),
+            access_token=payload.access_token,
+            account_id=account.get("id"),
+            status=account.get("status")
         )
         db.add(connection)
         db.commit()
         db.refresh(connection)
-        created.append(connection)
-    return created
+        connections.append(connection)
+    return connections
 
 
 async def run_import(db: Session, client, external_user_id: str, payload):
@@ -52,11 +55,13 @@ async def run_import(db: Session, client, external_user_id: str, payload):
     - если указан connection_id → используем существующее соединение
     - если operations → обрабатываем как file/manual импорт
     """
-    user, _ = utils.get_or_create(db, User, client_id=client.id, external_id=external_user_id)
+    user, _ = utils.get_or_create(
+        db, User, client_id=client.id, external_id=external_user_id)
 
     # Получаем брокера
     if payload.connection_id:
-        connection = db.query(Connection).filter_by(id=payload.connection_id, user_id=user.id).first()
+        connection = db.query(Connection).filter_by(
+            id=payload.connection_id, user_id=user.id).first()
         if not connection:
             raise Exception("Connection not found")
 
@@ -73,4 +78,3 @@ async def run_import(db: Session, client, external_user_id: str, payload):
     # тут можно сохранить операции в таблицу `operations`
     # (в примере просто возвращаем список)
     return operations
-

@@ -7,12 +7,12 @@ from backend.models.mixins import ChangesMixin
 
 
 class ConnectionStatus(str, PyEnum):
-    ACTIVE = "active"
-    INACTIVE = "inactive"
-    DELISTED = "delisted"
-    PENDING = "pending"
-    ERROR = "error"
-    REVOKED = "revoked"
+    ACTIVE = "ACTIVE"
+    INACTIVE = "INACTIVE"
+    DELISTED = "DELISTED"
+    PENDING = "PENDING"
+    ERROR = "ERROR"
+    REVOKED = "REVOKED"
 
 
 # === MODEL ===
