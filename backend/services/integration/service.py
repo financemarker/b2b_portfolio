@@ -1,6 +1,8 @@
-from typing import List
+from typing import List, Optional
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session
-from backend.models import User, Portfolio, Connection
+
+from backend.models import User, Portfolio, Connection, PortfolioConnection
 from backend.core import utils
 from backend.services.integration.brokers.tinkoff_token import TinkoffToken
 # сюда же будут добавляться другие брокеры
@@ -8,10 +10,9 @@ from backend.services.integration.brokers.tinkoff_token import TinkoffToken
 # === Централизованный реестр брокеров ===
 BROKER_REGISTRY = {
     "tinkoff_token": TinkoffToken(),
+    # "manual_json": ManualJson(),
     # "finam_file": FinamFile(),
 }
-
-# === Фасад для маршрутов ===
 
 
 async def create_connection(db: Session, client, external_user_id: str, payload) -> List[dict]:
@@ -49,32 +50,38 @@ async def create_connection(db: Session, client, external_user_id: str, payload)
     return connections
 
 
-async def run_import(db: Session, client, external_user_id: str, payload):
-    """
-    Импорт операций:
-    - если указан connection_id → используем существующее соединение
-    - если operations → обрабатываем как file/manual импорт
-    """
-    user, _ = utils.get_or_create(
-        db, User, client_id=client.id, external_id=external_user_id)
-
-    # Получаем брокера
+async def run_import(db: Session, user, payload) -> List[dict]:
+    # Получаем операции от брокера или из payload
+    connection = None
     if payload.connection_id:
         connection = db.query(Connection).filter_by(
             id=payload.connection_id, user_id=user.id).first()
         if not connection:
             raise Exception("Connection not found")
-
         broker_key = f"{connection.broker_code}_{connection.strategy}"
-        broker = BROKER_REGISTRY.get(broker_key)
-        if not broker:
-            raise Exception(f"Broker '{broker_key}' not registered")
-
-        operations = await broker.import_operations(**payload.model_dump())
     else:
-        # ручной / file импорт
-        operations = payload.operations or []
+        broker_key = "manual_json"
 
-    # тут можно сохранить операции в таблицу `operations`
-    # (в примере просто возвращаем список)
+    broker = BROKER_REGISTRY.get(broker_key)
+    if not broker:
+        raise Exception(f"Integration for '{broker_key}' not found")
+
+    # create and check portfolio limits
+    if payload.portfolio_id:
+        portfolio = db.query(Portfolio).filter(
+            Portfolio.id == payload.portfolio_id, Portfolio.user_id == user.id).first()
+    else:
+        portfolio = utils.create_and_link_portfolio(user, db, connection)
+
+    # Prepare kwargs for broker's import_operations method
+    import_kwargs = {
+        "connection": connection,
+        "portfolio": portfolio,
+        "operations": payload.operations,
+        "db": db,
+    }
+
+    # Get operations from broker
+    operations = await broker.import_operations(**import_kwargs)
+
     return operations

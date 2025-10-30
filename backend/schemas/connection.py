@@ -8,9 +8,11 @@ from backend.models.connection import ConnectionStatus
 # -----------------------------
 class ConnectionRead(BaseModel):
     id: int
+    access_token: str | None
     account_id: int | None
     name: str
     broker_code: str
+    strategy: str
     status: ConnectionStatus
 
 
@@ -30,19 +32,6 @@ class ImportPayload(BaseModel):
     Универсальный payload для импорта операций.
     Используется в /users/{external_user_id}/imports/
     """
-    connection_id: Optional[int] = Field(
-        None,
-        description="ID подключения (если импорт через существующий connection)"
-    )
-    operations: Optional[List[OperationCreate]] = Field(
-        None,
-        description="Список операций (если импорт вручную или из файла)"
-    )
-    portfolio_id: Optional[int] = Field(
-        None,
-        description="Если нужно указать портфель явно"
-    )
-    external_user_id: Optional[str] = Field(
-        None,
-        description="Для внутренних вызовов можно дублировать ID пользователя (опционально)"
-    )
+    connection_id: int | None = Field(None, description="ID подключения (если импорт через существующий connection)")
+    operations: List[OperationCreate] | None = Field(None, description="Список операций (если импорт вручную или из файла)")
+    portfolio_id: int | None = Field(None, description="ID портфеля для сохранения операций. Если не указан - создается автоматически")

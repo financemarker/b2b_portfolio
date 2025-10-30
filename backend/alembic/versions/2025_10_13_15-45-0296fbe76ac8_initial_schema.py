@@ -62,7 +62,6 @@ def upgrade() -> None:
     sa.Column('id', sa.BigInteger(), nullable=False),
     sa.Column('user_id', sa.BigInteger(), nullable=False),
     sa.Column('name', sa.String(length=255), nullable=False),
-    sa.Column('broker_code', sa.String(length=50), nullable=False),
     sa.Column('created_by', sa.String(length=64), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('changed_by', sa.String(length=64), nullable=True),

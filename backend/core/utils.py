@@ -1,5 +1,7 @@
 from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+from backend.models import Portfolio, PortfolioConnection, User, Connection, Instrument
 
 def get_or_create(db, model, defaults=None, **filters):
     instance = db.query(model).filter_by(**filters).first()
@@ -36,3 +38,39 @@ def consume_api_request(client, db):
         raise HTTPException(429, "Daily API request limit reached")
     client.api_requests_remaining -= 1
     db.commit()
+
+def create_and_link_portfolio(user: User, db: Session, connection: Connection | None):
+    portfolio = Portfolio(user_id=user.id, name=f"Portfolio №{user.portfolios_count + 1} for user {user.id}")
+    db.add(portfolio)
+    db.flush()  # Get portfolio.id without committing
+    # increase counter
+    user.portfolios_count += 1
+    db.add(user)
+    # Link connection to portfolio
+    if connection:
+        portfolio_connection = PortfolioConnection(
+            portfolio_id=portfolio.id,
+            connection_id=connection.id
+        )
+        db.add(portfolio_connection)
+
+    # commit changes
+    db.commit()
+    return portfolio
+
+def find_instrument(db: Session, identifiers: dict):
+    # Try to find by FIGI first (most common identifier)
+    figi = identifiers.get('figi')
+    if figi:
+        instrument = db.query(Instrument).filter(Instrument.figi == figi).first()
+        if instrument:
+            return instrument
+
+    # Try to find by ISIN
+    isin = identifiers.get('isin')
+    if isin:
+        instrument = db.query(Instrument).filter(Instrument.isin == isin).first()
+        if instrument:
+            return instrument
+
+    return None
