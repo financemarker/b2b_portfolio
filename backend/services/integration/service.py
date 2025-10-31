@@ -70,6 +70,8 @@ async def run_import(db: Session, user, payload) -> List[dict]:
     if payload.portfolio_id:
         portfolio = db.query(Portfolio).filter(
             Portfolio.id == payload.portfolio_id, Portfolio.user_id == user.id).first()
+        if not portfolio:
+            raise Exception(f"Portfolio {payload.portfolio_id} for given user not found")
     else:
         portfolio = utils.create_and_link_portfolio(user, db, connection)
 

@@ -137,12 +137,14 @@ class TinkoffToken(BrokerBase):
                     )
 
                     # Get operations
-                    response = client.operations.get_operations_by_cursor(request)
+                    response = client.operations.get_operations_by_cursor(
+                        request)
                     # Process each operation
                     for item in response.items:
-                        operation = self._convert_operation(item)
+                        operation, idenfifiers = self._convert_operation(item)
                         if operation:
-                            operation['instrument_id'] = get_or_create_instrument(client, db, operation['raw_data'])
+                            operation['instrument_id'] = get_or_create_instrument(
+                                client, db, idenfifiers)
                             operation['portfolio_id'] = portfolio.id
                             operation['source'] = connection.id
                             operations.append(operation)
@@ -168,7 +170,8 @@ class TinkoffToken(BrokerBase):
             # Extract basic info
             broker_operation_id = item.id
             timestamp = item.date
-            operation_type = map_operation_type(item.type)
+            operation_type = TINKOFF_OPERATION_TYPE_MAPPING.get(
+                item.type, None)
 
             # Extract instrument info
             figi = item.figi if hasattr(item, 'figi') and item.figi else None
@@ -249,21 +252,19 @@ class TinkoffToken(BrokerBase):
                 "raw_data": raw_data
             }
 
-            return operation
+            idenfifiers = {
+                "instrument_uid": instrument_uid,
+                "figi": figi,
+                "exchange_code": "CURRENCY" if operation_type not in ['buy', 'sell'] else None,
+                "code": payment_currency if operation_type not in ['buy', 'sell'] else None,
+            }
+
+            return operation, idenfifiers
 
         except Exception as e:
             # Log error but don't stop processing other operations
             print(f"Error converting operation {item.id}: {str(e)}")
             return None
-
-
-def map_operation_type(tinkoff_type: OperationType) -> str:
-    """
-    Map Tinkoff operation type to our universal operation type.
-
-    Returns 'other' for unmapped operation types.
-    """
-    return TINKOFF_OPERATION_TYPE_MAPPING.get(tinkoff_type, "other")
 
 
 def money_value_to_decimal(money: Optional[MoneyValue]) -> Optional[Decimal]:
@@ -280,6 +281,7 @@ def money_value_to_decimal(money: Optional[MoneyValue]) -> Optional[Decimal]:
         return None
 
     return Decimal(money.units) + Decimal(money.nano) / Decimal(1_000_000_000)
+
 
 def get_currency_code(money: Optional[MoneyValue]) -> Optional[str]:
     """
@@ -303,58 +305,71 @@ def get_or_create_instrument(client: Client, db: Session, identifiers: dict) -> 
     # If not found, fetch from Tinkoff API and create new instrument
     figi = identifiers.get('figi')
     instrument_uid = identifiers.get('instrument_uid')
+    exchange_code = identifiers.get('exchange_code')
+    code = identifiers.get('code')
 
     # Try to get instrument info from Tinkoff API
     tinkoff_instrument = None
-    try:
-        if instrument_uid:
-            # Prefer instrument_uid as it's more reliable
-            request = InstrumentRequest(
-                id_type=InstrumentIdType.INSTRUMENT_ID_TYPE_UID,
-                id=instrument_uid
-            )
-            response = client.instruments.get_instrument_by(request=request)
-            tinkoff_instrument = response.instrument
-        elif figi:
-            # Fallback to FIGI
-            request = InstrumentRequest(
-                id_type=InstrumentIdType.INSTRUMENT_ID_TYPE_FIGI,
-                id=figi
-            )
-            response = client.instruments.get_instrument_by(request=request)
-            tinkoff_instrument = response.instrument
-    except Exception as e:
-        print(f"Error fetching instrument from Tinkoff API: {str(e)}")
-        # If we can't fetch from API, we can't create the instrument
-        raise Exception(f"Could not find or create instrument with identifiers: {identifiers}")
+    if instrument_uid:
+        # Prefer instrument_uid as it's more reliable
+        request = InstrumentRequest(
+            id_type=InstrumentIdType.INSTRUMENT_ID_TYPE_UID,
+            id=instrument_uid
+        )
+        response = client.instruments.get_instrument_by(request=request)
+        tinkoff_instrument = response.instrument
+    elif figi:
+        # Fallback to FIGI
+        request = InstrumentRequest(
+            id_type=InstrumentIdType.INSTRUMENT_ID_TYPE_FIGI,
+            id=figi
+        )
+        response = client.instruments.get_instrument_by(request=request)
+        tinkoff_instrument = response.instrument
+    elif exchange_code and code:
+        # Create currency new instrument
+        instrument = Instrument(
+            exchange_code=exchange_code,
+            code=code,
+            category=InstrumentCategory.CURRENCY,
+            currency=code,
+            status=InstrumentStatus.ACTIVE
+        )
 
-    if not tinkoff_instrument:
-        raise Exception(f"Instrument not found in Tinkoff API: {identifiers}")
+    if tinkoff_instrument:
+        # Map Tinkoff exchange to our exchange code
+        # Tinkoff returns exchange like "MOEX", "SPB", etc.
+        exchange_code = TINKOFF_EXCHANGE_MAPPING.get(
+            tinkoff_instrument.exchange,
+            None
+        )
 
-    # Map Tinkoff exchange to our exchange code
-    # Tinkoff returns exchange like "MOEX", "SPB", etc.
-    exchange_code = TINKOFF_EXCHANGE_MAPPING.get(
-        tinkoff_instrument.exchange,
-        tinkoff_instrument.exchange
-    )
+        # Map Tinkoff instrument type to our category
+        category = TINKOFF_INSTRUMENT_TYPE_MAPPING.get(
+            tinkoff_instrument.instrument_type.lower(),
+            None
+        )
 
-    # Map Tinkoff instrument type to our category
-    category = TINKOFF_INSTRUMENT_TYPE_MAPPING.get(
-        tinkoff_instrument.instrument_type.lower(),
-        InstrumentCategory.OTHER
-    )
+        if not exchange_code or not category:
+            raise Exception(
+                f"Could not map exchange_code or category for instrument: {tinkoff_instrument.ticker}")
 
-    # Create new instrument
-    instrument = Instrument(
-        exchange_code=exchange_code,
-        code=tinkoff_instrument.ticker,
-        name=tinkoff_instrument.name,
-        figi=tinkoff_instrument.figi if tinkoff_instrument.figi else None,
-        isin=tinkoff_instrument.isin if tinkoff_instrument.isin else None,
-        category=category,
-        currency=tinkoff_instrument.currency.upper() if tinkoff_instrument.currency else None,
-        status=InstrumentStatus.ACTIVE if tinkoff_instrument.api_trade_available_flag else InstrumentStatus.INACTIVE
-    )
+        # Create new instrument
+        instrument = Instrument(
+            exchange_code=exchange_code,
+            code=tinkoff_instrument.ticker,
+            name=tinkoff_instrument.name,
+            figi=tinkoff_instrument.figi if tinkoff_instrument.figi else None,
+            isin=tinkoff_instrument.isin if tinkoff_instrument.isin else None,
+            category=category,
+            currency=tinkoff_instrument.currency.upper(
+            ) if tinkoff_instrument.currency else None,
+            status=InstrumentStatus.ACTIVE if tinkoff_instrument.api_trade_available_flag else InstrumentStatus.INACTIVE
+        )
+
+    if not instrument:
+        raise Exception(
+            f"Could not create new instrument for: {identifiers}")
 
     db.add(instrument)
     db.commit()

@@ -3,6 +3,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from backend.models import Portfolio, PortfolioConnection, User, Connection, Instrument
 
+
 def get_or_create(db, model, defaults=None, **filters):
     instance = db.query(model).filter_by(**filters).first()
     if instance:
@@ -21,13 +22,17 @@ def get_or_create(db, model, defaults=None, **filters):
     db.refresh(instance)
     return instance, True
 
+
 def check_users_limit(client):
     if client.users_limit and client.users_count >= client.users_limit:
         raise HTTPException(403, "User limit reached")
 
+
 def check_portfolios_limit(client, user):
     if client.user_portfolios_limit and user.portfolios_count >= client.user_portfolios_limit:
-        raise HTTPException(403, f"Portfolio limit reached for user {user.external_id}")
+        raise HTTPException(
+            403, f"Portfolio limit reached for user {user.external_id}")
+
 
 def consume_api_request(client, db):
     if client.api_requests_limit is None:
@@ -39,8 +44,10 @@ def consume_api_request(client, db):
     client.api_requests_remaining -= 1
     db.commit()
 
+
 def create_and_link_portfolio(user: User, db: Session, connection: Connection | None):
-    portfolio = Portfolio(user_id=user.id, name=f"Portfolio №{user.portfolios_count + 1} for user {user.id}")
+    portfolio = Portfolio(
+        user_id=user.id, name=f"Portfolio №{user.portfolios_count + 1} for user {user.id}")
     db.add(portfolio)
     db.flush()  # Get portfolio.id without committing
     # increase counter
@@ -58,19 +65,30 @@ def create_and_link_portfolio(user: User, db: Session, connection: Connection | 
     db.commit()
     return portfolio
 
+
 def find_instrument(db: Session, identifiers: dict):
     # Try to find by FIGI first (most common identifier)
     figi = identifiers.get('figi')
     if figi:
-        instrument = db.query(Instrument).filter(Instrument.figi == figi).first()
+        instrument = db.query(Instrument).filter(
+            Instrument.figi == figi).first()
         if instrument:
             return instrument
 
     # Try to find by ISIN
     isin = identifiers.get('isin')
     if isin:
-        instrument = db.query(Instrument).filter(Instrument.isin == isin).first()
+        instrument = db.query(Instrument).filter(
+            Instrument.isin == isin).first()
         if instrument:
             return instrument
 
+    # Try to find by exchange_code + code
+    exchange_code = identifiers.get('exchange_code')
+    code = identifiers.get('code')
+    if exchange_code and code:
+        instrument = db.query(Instrument).filter(
+            Instrument.exchange_code == exchange_code, Instrument.code == code).first()
+        if instrument:
+            return instrument
     return None

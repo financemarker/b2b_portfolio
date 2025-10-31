@@ -9,19 +9,19 @@ from backend.models.mixins import ChangesMixin
 
 # === ENUM TYPES ===
 class InstrumentCategory(str, PyEnum):
-    STOCK = "stock"
-    BOND = "bond"
-    FUND = "fund"
-    COMMODITY = "commodity"
-    CURRENCY = "currency"
-    CRYPTO = "crypto"
-    OTHER = "other"
+    STOCK = "STOCK"
+    BOND = "BOND"
+    FUND = "FUND"
+    COMMODITY = "COMMODITY"
+    CURRENCY = "CURRENCY"
+    CRYPTO = "CRYPTO"
+    OTHER = "OTHER"
 
 
 class InstrumentStatus(str, PyEnum):
-    ACTIVE = "active"
-    INACTIVE = "inactive"
-    DELISTED = "delisted"
+    ACTIVE = "ACTIVE"
+    INACTIVE = "INACTIVE"
+    DELISTED = "DELISTED"
 
 
 # === MODEL ===

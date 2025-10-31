@@ -1,4 +1,4 @@
-"""create exchanges and securities
+"""create exchanges and instruments
 
 Revision ID: 6d1d2fa94bcc
 Revises: 042a705cf34d
@@ -46,7 +46,7 @@ def upgrade() -> None:
         sa.Column(
             "category",
             sa.Enum(
-                "stock", "bond", "fund", "commodity", "currency", "crypto", "other",
+                "STOCK", "BOND", "FUND", "COMMODITY", "CURRENCY", "CRYPTO", "OTHER",
                 name="instrument_category",
             ),
             nullable=False,
@@ -54,10 +54,10 @@ def upgrade() -> None:
         sa.Column("currency", sa.String(3), nullable=True),
         sa.Column(
             "status",
-            sa.Enum("active", "inactive", "delisted",
+            sa.Enum("ACTIVE", "INACTIVE", "DELISTED",
                     name="instrument_status"),
             nullable=False,
-            server_default="active",
+            server_default="ACTIVE",
         ),
         sa.Column('created_by', sa.String(length=64), nullable=True),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
