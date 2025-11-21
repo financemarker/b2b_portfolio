@@ -1,8 +1,9 @@
 from typing import List, Optional
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
+from sqlalchemy.dialects.postgresql import insert
 
-from backend.models import User, Portfolio, Connection, PortfolioConnection
+from backend.models import User, Portfolio, Connection, PortfolioConnection, Operation
 from backend.core import utils
 from backend.services.integration.brokers.tinkoff_token import TinkoffToken
 from backend.schemas.portfolio import ImportResponse
@@ -52,8 +53,6 @@ async def create_connection(db: Session, client, external_user_id: str, payload)
 
 
 async def import_operations(db: Session, user, portfolio, payload) -> ImportResponse:
-    import_results = {}
-    # Получаем операции от брокера или из payload
     connection = None
     if payload.connection_id:
         connection = db.query(Connection).filter_by(
@@ -61,7 +60,6 @@ async def import_operations(db: Session, user, portfolio, payload) -> ImportResp
         if not connection:
             raise Exception("Connection not found")
         broker_key = f"{connection.broker_code}_{connection.strategy}"
-
         utils.link_portfolio_with_connection(db, portfolio, connection)
     else:
         broker_key = "manual_json"
@@ -70,9 +68,6 @@ async def import_operations(db: Session, user, portfolio, payload) -> ImportResp
     if not broker:
         raise Exception(f"Integration for '{broker_key}' not found")
 
-    
-
-    # Prepare kwargs for broker's import_operations method
     import_kwargs = {
         "connection": connection,
         "portfolio": portfolio,
@@ -80,9 +75,18 @@ async def import_operations(db: Session, user, portfolio, payload) -> ImportResp
         "db": db,
     }
 
-    # Get operations from broker
-    operations = await broker.import_operations(**import_kwargs)
-    # batch save and prepare results stat
-    
+    operations, errors = await broker.import_operations(**import_kwargs)
 
-    return import_results
+    BATCH_SIZE = 1000
+    for i in range(0, len(operations), BATCH_SIZE):
+        batch = operations[i:i + BATCH_SIZE]
+
+        stmt = insert(Operation).values(batch)
+        stmt = stmt.on_conflict_do_nothing(
+            constraint='uq_operations_portfolio_source_broker_id'
+        )
+        db.execute(stmt)
+
+    db.commit()
+
+    return ImportResponse(total=len(operations), errors=errors)

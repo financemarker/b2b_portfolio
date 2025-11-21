@@ -30,11 +30,5 @@ class ImportPayload(BaseModel):
 
 
 class ImportResponse(BaseModel):
-    """
-    Универсальный payload для импорта операций.
-    Используется в /users/{external_user_id}/imports/
-    """
-    warnings: List[dict]
-    operations: List[OperationCreate] | None = Field(None, description="Список операций (если импорт вручную или из файла)")
     total: int
-    total_imported: int
+    errors: List[str]

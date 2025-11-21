@@ -1,6 +1,7 @@
 from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
+from sqlalchemy.dialects.postgresql import insert
 from backend.models import Portfolio, PortfolioConnection, User, Connection, Instrument
 
 
@@ -66,11 +67,14 @@ def create_and_link_portfolio(user: User, db: Session, connection: Connection | 
     return portfolio
 
 def link_portfolio_with_connection(db: Session, portfolio, connection):
-    portfolio_connection = PortfolioConnection(
+    stmt = insert(PortfolioConnection).values(
         portfolio_id=portfolio.id,
         connection_id=connection.id
     )
-    db.upsert(portfolio_connection)
+    stmt = stmt.on_conflict_do_nothing(
+        constraint='uq_portfolios_connections_pair'
+    )
+    db.execute(stmt)
     db.commit()
 
 def find_instrument(db: Session, identifiers: dict):

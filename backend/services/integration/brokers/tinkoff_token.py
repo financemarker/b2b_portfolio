@@ -106,8 +106,7 @@ class TinkoffToken(BrokerBase):
 
         return accounts
 
-    async def import_operations(self, **kwargs) -> List[dict]:
-        # Get required parameters
+    async def import_operations(self, **kwargs):
         portfolio = kwargs['portfolio']
         if not portfolio:
             raise Exception("portfolio is required")
@@ -119,13 +118,14 @@ class TinkoffToken(BrokerBase):
             raise Exception("db (database session) is required")
 
         operations = []
+        errors = []
+
         with Client(connection.access_token, target=INVEST_GRPC_API) as client:
             try:
                 cursor = None
                 has_next = True
 
                 while has_next:
-                    # Build request
                     request = GetOperationsByCursorRequest(
                         account_id=connection.account_id,
                         cursor=cursor,
@@ -136,20 +136,20 @@ class TinkoffToken(BrokerBase):
                         without_overnights=True
                     )
 
-                    # Get operations
-                    response = client.operations.get_operations_by_cursor(
-                        request)
-                    # Process each operation
-                    for item in response.items:
-                        operation, idenfifiers = self._convert_operation(item)
-                        if operation:
-                            operation['instrument_id'] = get_or_create_instrument(
-                                client, db, idenfifiers)
-                            operation['portfolio_id'] = portfolio.id
-                            operation['source'] = connection.id
-                            operations.append(operation)
+                    response = client.operations.get_operations_by_cursor(request)
 
-                    # Check if there are more pages
+                    for item in response.items:
+                        try:
+                            operation, idenfifiers = self._convert_operation(item)
+                            if operation:
+                                operation['instrument_id'] = get_or_create_instrument(
+                                    client, db, idenfifiers)
+                                operation['portfolio_id'] = portfolio.id
+                                operation['source'] = connection.id
+                                operations.append(operation)
+                        except Exception as e:
+                            errors.append(f"Operation {item.id}: {str(e)}")
+
                     has_next = response.has_next
                     cursor = response.next_cursor if has_next else None
 
@@ -158,7 +158,7 @@ class TinkoffToken(BrokerBase):
                     raise Exception(e.metadata.message)
                 raise Exception(str(e))
 
-        return operations
+        return operations, errors
 
     def _convert_operation(self, item) -> Optional[dict]:
         """
@@ -166,105 +166,100 @@ class TinkoffToken(BrokerBase):
 
         Returns None if operation should be skipped.
         """
-        try:
-            # Extract basic info
-            broker_operation_id = item.id
-            timestamp = item.date
-            operation_type = TINKOFF_OPERATION_TYPE_MAPPING.get(
-                item.type, None)
+        # Extract basic info
+        broker_operation_id = item.id
+        timestamp = item.date
+        operation_type = TINKOFF_OPERATION_TYPE_MAPPING.get(
+            item.type, None)
 
-            # Extract instrument info
-            figi = item.figi if hasattr(item, 'figi') and item.figi else None
-            instrument_uid = item.instrument_uid if hasattr(
-                item, 'instrument_uid') and item.instrument_uid else None
+        # Extract instrument info
+        figi = item.figi if hasattr(item, 'figi') and item.figi else None
+        instrument_uid = item.instrument_uid if hasattr(
+            item, 'instrument_uid') and item.instrument_uid else None
 
-            # Extract financial data
-            quantity = item.quantity if hasattr(item, 'quantity') else None
-            price = money_value_to_decimal(item.price) if hasattr(
-                item, 'price') and item.price else None
-            price_currency = get_currency_code(item.price) if hasattr(
-                item, 'price') and item.price else None
+        # Extract financial data
+        quantity = item.quantity if hasattr(item, 'quantity') else None
+        price = money_value_to_decimal(item.price) if hasattr(
+            item, 'price') and item.price else None
+        price_currency = get_currency_code(item.price) if hasattr(
+            item, 'price') and item.price else None
 
-            payment = money_value_to_decimal(item.payment) if hasattr(
-                item, 'payment') and item.payment else None
-            payment_currency = get_currency_code(item.payment) if hasattr(
-                item, 'payment') and item.payment else None
+        payment = money_value_to_decimal(item.payment) if hasattr(
+            item, 'payment') and item.payment else None
+        payment_currency = get_currency_code(item.payment) if hasattr(
+            item, 'payment') and item.payment else None
 
-            commission = money_value_to_decimal(item.commission) if hasattr(
-                item, 'commission') and item.commission else None
-            commission_currency = get_currency_code(item.commission) if hasattr(
-                item, 'commission') and item.commission else None
+        commission = money_value_to_decimal(item.commission) if hasattr(
+            item, 'commission') and item.commission else None
+        commission_currency = get_currency_code(item.commission) if hasattr(
+            item, 'commission') and item.commission else None
 
-            # Extract tax from child operations
-            tax = None
-            tax_currency = None
-            if hasattr(item, 'child_operations') and item.child_operations:
-                for child in item.child_operations:
-                    # Child operations for taxes
-                    child_payment = money_value_to_decimal(
-                        child.payment) if child.payment else None
-                    if child_payment and child_payment < 0:  # Tax is negative
-                        tax = abs(child_payment)
-                        tax_currency = get_currency_code(child.payment)
-                        break
+        # Extract tax from child operations
+        tax = None
+        tax_currency = None
+        if hasattr(item, 'child_operations') and item.child_operations:
+            for child in item.child_operations:
+                # Child operations for taxes
+                child_payment = money_value_to_decimal(
+                    child.payment) if child.payment else None
+                if child_payment and child_payment < 0:  # Tax is negative
+                    tax = abs(child_payment)
+                    tax_currency = get_currency_code(child.payment)
+                    break
 
-            # Extract accrued interest (for bonds)
-            accrued_interest = money_value_to_decimal(item.accrued_int) if hasattr(
-                item, 'accrued_int') and item.accrued_int else None
-            accrued_interest_currency = get_currency_code(item.accrued_int) if hasattr(
-                item, 'accrued_int') and item.accrued_int else None
+        # Extract accrued interest (for bonds)
+        accrued_interest = money_value_to_decimal(item.accrued_int) if hasattr(
+            item, 'accrued_int') and item.accrued_int else None
+        accrued_interest_currency = get_currency_code(item.accrued_int) if hasattr(
+            item, 'accrued_int') and item.accrued_int else None
 
-            # Description
-            description = item.description if hasattr(
-                item, 'description') and item.description else None
-            name = item.name if hasattr(item, 'name') and item.name else None
-            if name and description:
-                description = f"{name}: {description}"
-            elif name:
-                description = name
+        # Description
+        description = item.description if hasattr(
+            item, 'description') and item.description else None
+        name = item.name if hasattr(item, 'name') and item.name else None
+        if name and description:
+            description = f"{name}: {description}"
+        elif name:
+            description = name
 
-            # Store raw data for debugging
-            raw_data = {
-                "id": broker_operation_id,
-                "type": item.type,
-                "date": item.date.isoformat() if item.date else None,
-                "instrument_uid": instrument_uid,
-                "figi": figi,
-            }
+        # Store raw data for debugging
+        raw_data = {
+            "id": broker_operation_id,
+            "type": item.type,
+            "date": item.date.isoformat() if item.date else None,
+            "instrument_uid": instrument_uid,
+            "figi": figi,
+        }
 
-            # Build operation dict
-            operation = {
-                "broker_operation_id": broker_operation_id,
-                "timestamp": timestamp,
-                "operation_type": operation_type,
-                "quantity": quantity,
-                "price": float(price) if price else None,
-                "price_currency": price_currency,
-                "payment": float(payment) if payment else None,
-                "payment_currency": payment_currency,
-                "commission": float(commission) if commission else None,
-                "commission_currency": commission_currency,
-                "tax": float(tax) if tax else None,
-                "tax_currency": tax_currency,
-                "accrued_interest": float(accrued_interest) if accrued_interest else None,
-                "accrued_interest_currency": accrued_interest_currency,
-                "description": description,
-                "raw_data": raw_data
-            }
+        # Build operation dict
+        operation = {
+            "broker_operation_id": broker_operation_id,
+            "timestamp": timestamp,
+            "operation_type": operation_type,
+            "quantity": quantity,
+            "price": float(price) if price else None,
+            "price_currency": price_currency,
+            "payment": float(payment) if payment else None,
+            "payment_currency": payment_currency,
+            "commission": float(commission) if commission else None,
+            "commission_currency": commission_currency,
+            "tax": float(tax) if tax else None,
+            "tax_currency": tax_currency,
+            "accrued_interest": float(accrued_interest) if accrued_interest else None,
+            "accrued_interest_currency": accrued_interest_currency,
+            "description": description,
+            "raw_data": raw_data
+        }
 
-            idenfifiers = {
-                "instrument_uid": instrument_uid,
-                "figi": figi,
-                "exchange_code": "CURRENCY" if operation_type not in ['buy', 'sell'] else None,
-                "code": payment_currency if operation_type not in ['buy', 'sell'] else None,
-            }
+        idenfifiers = {
+            "instrument_uid": instrument_uid,
+            "figi": figi,
+            "exchange_code": "CURRENCY" if operation_type not in ['buy', 'sell'] else None,
+            "code": payment_currency if operation_type not in ['buy', 'sell'] else None,
+        }
 
-            return operation, idenfifiers
+        return operation, idenfifiers
 
-        except Exception as e:
-            # Log error but don't stop processing other operations
-            print(f"Error converting operation {item.id}: {str(e)}")
-            return None
 
 
 def money_value_to_decimal(money: Optional[MoneyValue]) -> Optional[Decimal]:
@@ -351,8 +346,7 @@ def get_or_create_instrument(client: Client, db: Session, identifiers: dict) -> 
         )
 
         if not exchange_code or not category:
-            raise Exception(
-                f"Could not map exchange_code or category for instrument: {tinkoff_instrument.ticker}")
+            raise Exception(f"Could not map exchange_code or category for instrument: {tinkoff_instrument.ticker}")
 
         # Create new instrument
         instrument = Instrument(
@@ -368,8 +362,7 @@ def get_or_create_instrument(client: Client, db: Session, identifiers: dict) -> 
         )
 
     if not instrument:
-        raise Exception(
-            f"Could not create new instrument for: {identifiers}")
+        raise Exception(f"Could not create new instrument for: {identifiers}")
 
     db.add(instrument)
     db.commit()
