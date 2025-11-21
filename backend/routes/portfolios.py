@@ -76,7 +76,7 @@ async def import_operations(
         if not portfolio:
             raise HTTPException(status_code=404, detail="Portfolio not found")
 
-        result = await service.run_import(db, user, payload)
+        result = await service.import_operations(db, user, portfolio, payload)
         return ApiResponse.ok_item(result)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from backend.models import User, Portfolio, Connection, PortfolioConnection
 from backend.core import utils
 from backend.services.integration.brokers.tinkoff_token import TinkoffToken
+from backend.schemas.portfolio import ImportResponse
 # сюда же будут добавляться другие брокеры
 
 # === Централизованный реестр брокеров ===
@@ -50,7 +51,8 @@ async def create_connection(db: Session, client, external_user_id: str, payload)
     return connections
 
 
-async def run_import(db: Session, user, payload) -> List[dict]:
+async def import_operations(db: Session, user, portfolio, payload) -> ImportResponse:
+    import_results = {}
     # Получаем операции от брокера или из payload
     connection = None
     if payload.connection_id:
@@ -59,6 +61,8 @@ async def run_import(db: Session, user, payload) -> List[dict]:
         if not connection:
             raise Exception("Connection not found")
         broker_key = f"{connection.broker_code}_{connection.strategy}"
+
+        utils.link_portfolio_with_connection(db, portfolio, connection)
     else:
         broker_key = "manual_json"
 
@@ -66,14 +70,7 @@ async def run_import(db: Session, user, payload) -> List[dict]:
     if not broker:
         raise Exception(f"Integration for '{broker_key}' not found")
 
-    # create and check portfolio limits
-    if payload.portfolio_id:
-        portfolio = db.query(Portfolio).filter(
-            Portfolio.id == payload.portfolio_id, Portfolio.user_id == user.id).first()
-        if not portfolio:
-            raise Exception(f"Portfolio {payload.portfolio_id} for given user not found")
-    else:
-        portfolio = utils.create_and_link_portfolio(user, db, connection)
+    
 
     # Prepare kwargs for broker's import_operations method
     import_kwargs = {
@@ -85,5 +82,7 @@ async def run_import(db: Session, user, payload) -> List[dict]:
 
     # Get operations from broker
     operations = await broker.import_operations(**import_kwargs)
+    # batch save and prepare results stat
+    
 
-    return operations
+    return import_results

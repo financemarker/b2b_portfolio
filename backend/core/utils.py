@@ -65,6 +65,13 @@ def create_and_link_portfolio(user: User, db: Session, connection: Connection | 
     db.commit()
     return portfolio
 
+def link_portfolio_with_connection(db: Session, portfolio, connection):
+    portfolio_connection = PortfolioConnection(
+        portfolio_id=portfolio.id,
+        connection_id=connection.id
+    )
+    db.upsert(portfolio_connection)
+    db.commit()
 
 def find_instrument(db: Session, identifiers: dict):
     # Try to find by FIGI first (most common identifier)
